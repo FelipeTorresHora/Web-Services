@@ -2,7 +2,11 @@ package com.example.demo.services;
 
 import com.example.demo.entities.User;
 import com.example.demo.repositories.UserRepository;
+import com.example.demo.services.exceptions.DatabaseException;
+import com.example.demo.services.exceptions.ResourceNotFoundException;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -19,20 +23,31 @@ public class UserService {
     }
     public User findById(Long id){
         Optional<User> obj = repository.findById(id);
-        return obj.get();
+        return obj.orElseThrow(()-> new ResourceNotFoundException(id));
     }
 
     public User insert(User obj){
         return repository.save(obj);
     }
     public void delete(Long id){
-        repository.deleteById(id);
+        try {
+            repository.deleteById(id);
+        } catch (EntityNotFoundException e) {
+            throw new ResourceNotFoundException(id);
+        } catch (DataIntegrityViolationException e){
+            throw new DatabaseException(e.getMessage());}
     }
 
     public User update(Long id,User obj){
-        User entity = repository.getReferenceById(id);
-        updateData(entity,obj);
-        return repository.save(entity);
+        try{
+            User entity = repository.getReferenceById(id);
+            updateData(entity,obj);
+            return repository.save(entity);
+        } catch (EntityNotFoundException e){
+            e.printStackTrace();
+            throw new ResourceNotFoundException(id);
+        }
+
     }
     private void updateData(User entity,User obj){
         entity.setName(obj.getName());
